@@ -13,9 +13,12 @@ CodeAssist, Gensyn AI tarafından geliştirilen ve size kişiselleştirilmiş ya
 3. [Platform Seçimine Göre Kurulum](#platform-seçimine-göre-kurulum)
 4. [Başlangıç ve Giriş](#başlangıç-ve-giriş)
 5. [CodeAssist Kullanımı](#codeassist-kullanımı)
-6. [Model Eğitimi](#model-eğitimi)
-7. [Best Practices](#best-practices)
-8. [Sorun Giderme](#sorun-giderme)
+6. [HuggingFace Token Ayarı](#huggingface-token-ayarı)
+7. [Model Eğitimi](#model-eğitimi)
+8. [ChatGPT ile Hızlı Çözüm Metodu](#chatgpt-ile-hızlı-çözüm-metodu)
+9. [Participation ve Para Kazanma](#participation-ve-para-kazanma)
+10. [Best Practices](#best-practices)
+11. [Sorun Giderme](#sorun-giderme)
 
 ---
 
@@ -96,13 +99,14 @@ WSL terminalini açın ve şu komutu çalıştırın:
 
 ```bash
 sudo apt update && sudo apt upgrade -y
-sudo apt install -y python3.11 python3.11-venv curl docker.io
+sudo apt install -y python3.11 python3.11-venv curl docker.io screen build-essential git
 ```
 
 #### 4. UV Kurulumu
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="/root/.local/bin:$PATH"
 ```
 
 #### 5. Docker WSL Entegrasyonu
@@ -120,31 +124,48 @@ cd codeassist
 
 ### Linux (Ubuntu 22.04+)
 
-#### 1. Sistem Güncellemesi
+#### 1. Sistem Güncellemesi ve Gerekli Paketler
 
 ```bash
-sudo apt update && sudo apt upgrade -y
+sudo apt update && sudo apt upgrade -y && sudo apt install -y screen curl iptables build-essential git wget lz4 jq make gcc nano automake autoconf tmux htop pkg-config libssl-dev libleveldb-dev tar clang bsdmainutils ncdu unzip python3 python3-pip python3-venv
 ```
 
-#### 2. Bağımlılıklar
+#### 2. Docker Kurulumu (Temiz Kurulum)
 
 ```bash
-sudo apt install -y python3.11 python3.11-venv python3-pip curl
+sudo apt update -y && sudo apt upgrade -y
+# Eski versiyonları kaldır
+for pkg in docker.io docker-doc docker-compose podman-docker containerd runc; do sudo apt-get remove -y $pkg; done
+
+# Yeni versiyon kur
+sudo apt-get update -y && sudo apt-get install -y ca-certificates curl gnupg
+sudo install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg
+sudo chmod a+r /etc/apt/keyrings/docker.gpg
+
+echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo "$VERSION_CODENAME") stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+
+sudo apt update -y && sudo apt upgrade -y
+sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+
+# Docker kontrol et
+sudo docker run --rm hello-world
 ```
 
-#### 3. Docker Kurulumu
+#### 3. Docker Kullanıcı Grubu
 
 ```bash
-curl -fsSL https://get.docker.com -o get-docker.sh
-sudo sh get-docker.sh
 sudo usermod -aG docker $USER
 newgrp docker
+docker ps
 ```
 
 #### 4. UV Kurulumu
 
 ```bash
 curl -LsSf https://astral.sh/uv/install.sh | sh
+export PATH="/root/.local/bin:$PATH"
+uv --version
 ```
 
 #### 5. CodeAssist Deposu
@@ -194,6 +215,7 @@ cd codeassist
 CodeAssist klasörü içinde şu komutu çalıştırın:
 
 ```bash
+cd ~/codeassist
 uv run run.py
 ```
 
@@ -299,6 +321,51 @@ Test sonuçlarında göreceksiniz:
 
 ---
 
+## HuggingFace Token Ayarı
+
+### Token Nedir?
+
+HuggingFace token'ı, eğittiğiniz modelinizi otomatik olarak Hugging Face'e yüklemek için gereklidir. Bu sayede modeliniz bulutta saklanır ve istediğiniz zaman kullanabilirsiniz.
+
+### Token Oluşturma Adımları
+
+1. **Hugging Face'e Git:** [huggingface.co/settings/tokens](https://huggingface.co/settings/tokens)
+2. **Giriş Yap** (hesabın yoksa oluştur)
+3. **"Create New Token" Butonuna Tıkla**
+4. **"Write" Seçeneğini Seç** (okuma/yazma izni gerekli)
+5. **İsim Ver:** Örneğin "CodeAssist Token"
+6. **Token Oluştur**
+7. **Token'ı Kopyala** (göreceğin tek fırsat!)
+
+### CodeAssist'e Token Ekleme
+
+**Kurulum Sırasında:**
+```bash
+cd ~/codeassist
+uv run run.py
+```
+
+- Tarayıcıda `localhost:3000` açıldığında
+- Terminal sizden HuggingFace token isteyecek
+- Tokeni yapıştır (gözükmeyecek, bu normal!)
+- Enter'a bas
+
+**Daha Sonra Eklemek İçin:**
+- Settings/Ayarlar bölümüne git
+- "Hugging Face Token" alanına token'ı yapıştır
+- Kaydet
+
+### Token Nasıl Çalışır?
+
+```bash
+# Episode tamamlandığında (Ctrl + C'den sonra)
+# Model otomatik olarak eğitilir
+# Eğitim bitince HuggingFace'e yüklenir
+# Dashboard'dan takip edebilirsin
+```
+
+---
+
 ## Model Eğitimi
 
 ### Episode Tamamlama
@@ -319,9 +386,9 @@ Eğitim sırasında CodeAssist:
 2. Geri bildiriminize göre ödül ve ceza hesaplar
 3. Yerel model kontrol noktasını günceller
 4. Yeni model ağırlıklarını `~/.codeassist/models` klasöründe saklar
-5. (İsteğe bağlı) Modelinizi Hugging Face'e yükler
+5. Modelinizi Hugging Face'e yükler
 
-**Eğitim Süresi:** Sistem özelliklerine bağlı olarak 5-15 dakika
+**Eğitim Süresi:** 5-15 dakika (sistem özelliklerine bağlı)
 
 ### Beklentiler
 
@@ -337,10 +404,101 @@ Eğitim sırasında CodeAssist:
 Eğitim bittikten sonra CodeAssist'i yeniden başlatabilirsiniz:
 
 ```bash
+cd ~/codeassist
 uv run run.py
 ```
 
 Yeni model ağırlıklarınız otomatik olarak yüklenecek.
+
+---
+
+## ChatGPT ile Hızlı Çözüm Metodu
+
+### ⚡ Hızlı Katılım Yöntemi
+
+CodeAssist ile hızlı bir şekilde katılım biriktirebilirsiniz. ChatGPT kullanarak problemi çöztürüp öğrenen modele besleyerek participation kazanabilirsiniz.
+
+### Adımlar
+
+**Adım 1: CodeAssist Arayüzünden Problem Al**
+- Tarayıcıda `localhost:3000` aç
+- Zorluk seviyesi seç (Kolay başlangıç için ideal)
+- Problemin ekran görüntüsünü al
+
+**Adım 2: ChatGPT'ye Göster**
+1. ChatGPT'yi aç: [chat.openai.com](https://chat.openai.com)
+2. Ekran görüntüsünü yapıştır
+3. "Bunu çöz" yaz
+4. ChatGPT'nin sunduğu çözümü kopyala
+
+**Adım 3: CodeAssist'e Yapıştır**
+- CodeAssist arayüzüne dön
+- Çözümü kod alanına yapıştır
+- "SUBMIT SOLUTION" butonuna bas
+- Doğru / Yanlış sonucunu bekle
+
+**Adım 4: Tekrarla**
+- "Next Problem" / Sıradaki probleme geç
+- Aynı işlemi tekrarla
+
+**Adım 5: Eğitim**
+```bash
+# Terminale dön
+Ctrl + C  # Episode bitir
+# 5-6 dakika içinde eğitim tamamlanır
+```
+
+### ⏱️ Zaman Tahmini
+
+| Aktivite | Zaman |
+|----------|-------|
+| 1 Problem Çözme | 2-3 dakika |
+| Eğitim | 5-6 dakika |
+| **Toplam (1 Episode)** | **15 dakika** |
+| **Saat başına Problem** | **20+ problem** |
+
+---
+
+## Participation ve Para Kazanma
+
+### Participation Nedir?
+
+Participation, Gensyn AI'ın CodeAssist eğitim sürecine katkı için verdiği puanlardır. Her problem çözdüğünüzde participation kazanırsınız.
+
+### Dashboard'a Erişim
+
+```
+https://dashboard.gensyn.ai/?application=CodeAssist
+```
+
+Buradan:
+- ✅ Toplam participation görebilirsiniz
+- ✅ Çözdüğünüz problemler
+- ✅ Model eğitim ilerleme
+- ✅ Leaderboard sıralaması
+
+### Para Kazanma
+
+**Mevcut Durumu:**
+- Participation = AI eğitim katkısı
+- Gensyn daha sonra reward programı açacak
+- İlerisi için bekleme (Community üyeleri ilk haberi alacak)
+
+### Katılım Stratejisi
+
+```
+📅 Günlük Hedef: 3-4 Episode (1 saat)
+📊 Haftalık Hedef: 25+ Episode (haftada 5 saat)
+🎯 Aylık Hedef: 100+ Episode (ay boyunca 20 saat)
+
+✅ Sonuç: Yüksek Participation + Modeliniz
+```
+
+### Community Yolları
+
+- 💬 [Gensyn Discord](https://discord.com/invite/gensyn) - Güncel haberler
+- 📱 Twitter/X: @gensyn_ai - Duyurular
+- 📧 Newsletter: Gensyn sitesinden abone ol
 
 ---
 
@@ -481,12 +639,25 @@ cd ~/.codeassist && python -c "import torch; print(torch.cuda.is_available())"
 2. RAM yeterli mi: `free -h`
 3. Log dosyasını kontrol edin: `~/.codeassist/logs/`
 
+### HuggingFace Token Hatası
+
+**Hata:**
+```
+Invalid HuggingFace Token
+```
+
+**Çözüm:**
+1. Token'ın doğru olduğunu kontrol et
+2. Token'ın "Write" izni var mı kontrol et
+3. [https://huggingface.co/settings/tokens](https://huggingface.co/settings/tokens) buradan token'ı yenile
+4. Yeni token'ı CodeAssist'e ekle
+
 ### Web UI Açılmıyor
 
 **Çözüm:**
 ```bash
 # Tarayıcıda manuel olarak açın
-https://localhost:3000
+http://localhost:3000
 
 # Veya Docker loglarını kontrol edin
 docker logs codeassist
@@ -496,24 +667,36 @@ docker logs codeassist
 
 ## İleri Kullanım
 
-### Hugging Face Entegrasyonu
+### Screen ile Arka Planda Çalıştırma
 
-Modelinizi Hugging Face'e yüklemek için:
+Terminali kapatmadan CodeAssist'i arka planda çalıştırmak istiyorsanız:
 
-1. Hugging Face hesabı oluşturun: [huggingface.co](https://huggingface.co)
-2. Access token alın: Settings > Access Tokens
-3. CodeAssist'e token'ı yapıştırın
-4. Episode tamamlandığında otomatik yüklenir
+```bash
+# Screen session başlat
+screen -S codeassist
+
+# CodeAssist'i çalıştır
+cd ~/codeassist && uv run run.py
+
+# Screen'den ayrıl: Ctrl + A, sonra D
+# Screen'e dön: screen -r codeassist
+```
+
+### Multi-Problem Çözme
+
+Hızlı katılım için birden fazla terminal kullan:
+
+```bash
+# Terminal 1: CodeAssist
+cd ~/codeassist && uv run run.py
+
+# Terminal 2: ChatGPT / Problem çözüm
+# Terminal 3: Dashboard takibi
+```
 
 ### Özel Problem Ekleme
 
 **Gelecek Özellik:** CodeAssist çok yakında özel problem eklemeyi destekleyecek.
-
-### Multi-Node Setup
-
-**Gelişmiş:** Birden fazla makine üzerinde dağıtılmış eğitim mümkün. Ayrıntılar için:
-- GitHub Issues: [gensyn-ai/codeassist](https://github.com/gensyn-ai/codeassist/issues)
-- Discord: [Gensyn Community](https://discord.com/invite/gensyn)
 
 ---
 
@@ -524,6 +707,8 @@ Modelinizi Hugging Face'e yüklemek için:
 - 💬 [Discord Topluluğu](https://discord.com/invite/gensyn)
 - 🐛 [GitHub Issues](https://github.com/gensyn-ai/codeassist/issues)
 - 🚀 [RL-Swarm Node Çalıştırmak](https://github.com/gensyn-ai/rl-swarm)
+- 🔗 [Gensyn Dashboard](https://dashboard.gensyn.ai/?application=CodeAssist)
+- 🎯 [HuggingFace Tokens](https://huggingface.co/settings/tokens)
 
 ---
 
@@ -537,3 +722,4 @@ Hatalar, eksiklikler veya iyileştirmeler için Pull Request gönderin!
 ---
 
 *Son Güncelleme: 17 Kasım 2025*
+*Kaynaklar: Gensyn Official Docs + UfukNode Kurulum Rehberi*
